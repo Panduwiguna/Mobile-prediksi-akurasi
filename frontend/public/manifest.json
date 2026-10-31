@@ -1,0 +1,18 @@
+{
+  "name": "Zona Killzone ML Assistant",
+  "short_name": "Killzone AI",
+  "description": "Assistant Trading Pribadi NAS100 Asia Killzone dengan Machine Learning Random Forest",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070a10",
+  "theme_color": "#0d131f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
