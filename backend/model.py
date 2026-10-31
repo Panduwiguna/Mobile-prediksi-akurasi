@@ -218,14 +218,28 @@ class MultiMarketPredictor:
         # Check Killzone condition
         is_in_killzone = hour in conf["killzone_hours"]
         
-        # Determine Zone: >= 60% is ZONA EMAS, < 60% is ZONA MERAH
-        is_zona_emas = final_wr >= 60.0
-        
         # Risk Note according to direction and swing
         if direction_norm == "BUY":
             sl_swing = "di bawah M5 Swing Low"
         else:
             sl_swing = "di atas M5 Swing High"
+
+        # Determine 3 Zone Categories:
+        # 1. >= 60.0% -> ZONA EMAS (🟢)
+        # 2. 50.0% s/d 59.9% -> ZONA HATI-HATI (🟡)
+        # 3. < 50.0% -> ZONA MERAH (🔴)
+        if final_wr >= 60.0:
+            zone_key = "EMAS"
+            zone_title = "🟢 ZONA EMAS (High Probability Setup)"
+            risk_note = f"Disiplin SL {sl_swing}. Target RR 1:1.5."
+        elif final_wr >= 50.0:
+            zone_key = "KUNING"
+            zone_title = "🟡 ZONA HATI-HATI (Medium Probability Setup)"
+            risk_note = f"Win rate moderat (50-59%). Waspada fakeout, gunakan risk 0.5x lot, SL {sl_swing}."
+        else:
+            zone_key = "MERAH"
+            zone_title = "🔴 ZONA MERAH (Rawan Loss / Hindari!)"
+            risk_note = "Historis di jam/arah ini rawan fakeout. Sebaiknya SKIP setup ini."
 
         time_display = f"{hour:02d}:{minute:02d} WIB"
 
@@ -239,33 +253,19 @@ class MultiMarketPredictor:
         # • Risk Note: ...
         header_line = f"{conf['flag']} {pair_code} ({conf['name']}) - {conf['session']}"
         
-        if is_zona_emas:
-            zone_title = "🟢 ZONA EMAS (High Probability Setup)"
-            risk_note = f"Disiplin SL {sl_swing}. Target RR 1:1.5."
-            formatted_card = (
-                f"{header_line}\n"
-                f"{zone_title}\n"
-                f"-----------------------------------------\n"
-                f"• Jam Entry: {time_display}\n"
-                f"• Arah: {direction_norm}\n"
-                f"• Win Rate Historis (RR 1:1.5): {final_wr}%\n"
-                f"• Risk Note: {risk_note}"
-            )
-        else:
-            zone_title = "🔴 ZONA MERAH (Rawan Loss / Hindari!)"
-            risk_note = "Historis di jam/arah ini rawan fakeout. Sebaiknya SKIP setup ini."
-            formatted_card = (
-                f"{header_line}\n"
-                f"{zone_title}\n"
-                f"-----------------------------------------\n"
-                f"• Jam Entry: {time_display}\n"
-                f"• Arah: {direction_norm}\n"
-                f"• Risk Note: {risk_note}"
-            )
+        formatted_card = (
+            f"{header_line}\n"
+            f"{zone_title}\n"
+            f"-----------------------------------------\n"
+            f"• Jam Entry: {time_display}\n"
+            f"• Arah: {direction_norm}\n"
+            f"• Win Rate Historis (RR 1:1.5): {final_wr}%\n"
+            f"• Risk Note: {risk_note}"
+        )
 
         return {
             "status": "success",
-            "zone": "EMAS" if is_zona_emas else "MERAH",
+            "zone": zone_key,
             "zone_title": zone_title,
             "pair": pair_code,
             "pair_name": conf["name"],

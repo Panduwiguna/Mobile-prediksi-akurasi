@@ -7,10 +7,7 @@ import {
   Cpu, 
   Sparkles, 
   Bell, 
-  ShieldCheck, 
   Clock, 
-  Crosshair, 
-  Zap,
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
@@ -21,8 +18,31 @@ export default function ChatBubble({ message, onTriggerAlert }) {
   const [alertSet, setAlertSet] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
+  const { data } = message;
+
+  // Win rate value & Session invalidity
+  const winRateVal = (data && typeof data.win_rate_val === 'number') ? data.win_rate_val : 50;
+  const isInvalidSession = !!(data && data.is_invalid_session);
+
+  // 3 STATUS ZONA CATEGORIES:
+  // 1. Win Rate >= 60.0% -> ZONA EMAS (🟢 Neon Emerald)
+  // 2. Win Rate 50.0% s/d 59.9% -> ZONA HATI-HATI (🟡 Amber / Yellow Glow)
+  // 3. Win Rate < 50.0% -> ZONA MERAH (🔴 Crimson Danger)
+  let zoneCategory = 'MERAH';
+  if (winRateVal >= 60.0) {
+    zoneCategory = 'EMAS';
+  } else if (winRateVal >= 50.0) {
+    zoneCategory = 'KUNING';
+  } else {
+    zoneCategory = 'MERAH';
+  }
+
+  const isEmas = zoneCategory === 'EMAS';
+  const isKuning = zoneCategory === 'KUNING';
+  const isMerah = zoneCategory === 'MERAH';
+
   useEffect(() => {
-    if (message.sender === 'bot' && message.data?.zone === 'EMAS' && message.isNew) {
+    if (message.sender === 'bot' && isEmas && message.isNew) {
       confetti({
         particleCount: 55,
         spread: 70,
@@ -30,7 +50,7 @@ export default function ChatBubble({ message, onTriggerAlert }) {
         colors: ['#10b981', '#34d399', '#f59e0b', '#3b82f6', '#10b981']
       });
     }
-  }, [message]);
+  }, [message, isEmas]);
 
   if (message.sender === 'user') {
     return (
@@ -45,8 +65,6 @@ export default function ChatBubble({ message, onTriggerAlert }) {
       </div>
     );
   }
-
-  const { data } = message;
 
   // Informational / Welcome Card
   if (!data || !data.zone) {
@@ -69,10 +87,6 @@ export default function ChatBubble({ message, onTriggerAlert }) {
     );
   }
 
-  const isEmas = data.zone === 'EMAS';
-  const isInvalidSession = !!data.is_invalid_session;
-  const winRateVal = typeof data.win_rate_val === 'number' ? data.win_rate_val : 50;
-
   const copyToClipboard = () => {
     if (data.formatted_message) {
       navigator.clipboard.writeText(data.formatted_message);
@@ -89,14 +103,29 @@ export default function ChatBubble({ message, onTriggerAlert }) {
     setTimeout(() => setAlertSet(false), 3000);
   };
 
+  // Dynamic Theme Mapping
+  const cardBorderClass = isInvalidSession
+    ? 'card-pro-invalid'
+    : isEmas
+    ? 'card-pro-emas'
+    : isKuning
+    ? 'card-pro-kuning'
+    : 'card-pro-merah';
+
+  const ringStrokeColor = isEmas ? '#10b981' : isKuning ? '#f59e0b' : '#ef4444';
+  const ringMeterClass = isEmas ? 'ring-meter-emas' : isKuning ? 'ring-meter-kuning' : 'ring-meter-merah';
+
+  const statusPillClass = isEmas ? 'pill-glow-green' : isKuning ? 'pill-glow-yellow' : 'pill-glow-red';
+  const statusPillLabel = isEmas ? 'ZONE EMAS' : isKuning ? 'ZONE HATI-HATI' : 'ZONE MERAH';
+
   // SVG circular ring gauge parameters
   const ringRadius = 24;
   const ringCircumference = 2 * Math.PI * ringRadius;
-  const strokeDashoffset = ringCircumference - (winRateVal / 100) * ringCircumference;
+  const strokeDashoffset = ringCircumference - (Math.max(5, Math.min(100, winRateVal)) / 100) * ringCircumference;
 
   return (
     <div className="chat-row bot-row">
-      <div className={`bot-card-pro ${isInvalidSession ? 'card-pro-invalid' : isEmas ? 'card-pro-emas' : 'card-pro-merah'}`}>
+      <div className={`bot-card-pro ${cardBorderClass}`}>
         
         {/* PRO CARD TOP: INSTITUTIONAL BADGE & ACTIONS */}
         <div className="pro-card-header">
@@ -165,8 +194,12 @@ export default function ChatBubble({ message, onTriggerAlert }) {
                 <div className="line-header">
                   {data.flag} {data.pair} ({data.pair_name}) - {data.session}
                 </div>
-                <div className={`line-sub-zone ${isEmas ? 'text-emas-bright' : 'text-merah-bright'}`}>
-                  {isEmas ? '🟢 ZONA EMAS (High Probability Setup)' : '🔴 ZONA MERAH (Rawan Loss / Hindari!)'}
+                <div className={`line-sub-zone font-bold ${isEmas ? 'text-emas-bright' : isKuning ? 'text-kuning-bright' : 'text-merah-bright'}`}>
+                  {isEmas
+                    ? '🟢 ZONA EMAS (High Probability Setup)'
+                    : isKuning
+                    ? '🟡 ZONA HATI-HATI (Medium Probability Setup)'
+                    : '🔴 ZONA MERAH (Rawan Loss / Hindari!)'}
                 </div>
                 <div className="line-divider">-----------------------------------------</div>
                 
@@ -183,16 +216,16 @@ export default function ChatBubble({ message, onTriggerAlert }) {
                   </span>
                 </div>
                 
-                {isEmas && (
-                  <div className="bullet-row">
-                    <span className="bullet-label">• Win Rate Historis (RR 1:1.5):</span>
-                    <span className="bullet-val win-rate-pill font-mono">{data.win_rate}</span>
-                  </div>
-                )}
+                <div className="bullet-row">
+                  <span className="bullet-label">• Win Rate Historis (RR 1:1.5):</span>
+                  <span className={`bullet-val win-rate-pill font-mono ${isEmas ? 'pill-wr-emas' : isKuning ? 'pill-wr-kuning' : 'pill-wr-merah'}`}>
+                    {data.win_rate}
+                  </span>
+                </div>
                 
                 <div className="bullet-row risk-row">
                   <span className="bullet-label">• Risk Note:</span>
-                  <span className={`bullet-val risk-text ${isEmas ? 'recom-emas' : 'recom-merah'}`}>
+                  <span className={`bullet-val risk-text ${isEmas ? 'recom-emas' : isKuning ? 'recom-kuning' : 'recom-merah'}`}>
                     {data.risk_note}
                   </span>
                 </div>
@@ -200,7 +233,7 @@ export default function ChatBubble({ message, onTriggerAlert }) {
             )}
           </div>
 
-          {/* Sisi Kanan: Circular Win Rate Ring Gauge (Bloomberg style) */}
+          {/* Sisi Kanan: Circular Win Rate Ring Gauge (Bloomberg/TradingView style) */}
           {!isInvalidSession && (
             <div className="pro-ring-gauge-wrapper">
               <div className="ring-container">
@@ -215,10 +248,10 @@ export default function ChatBubble({ message, onTriggerAlert }) {
                     cx="34"
                     cy="34"
                   />
-                  {/* Meter Fill */}
+                  {/* Meter Fill with Dynamic 3-Zone Color */}
                   <circle
-                    className={`ring-meter ${isEmas ? 'ring-meter-emas' : 'ring-meter-merah'}`}
-                    stroke={isEmas ? '#10b981' : '#ef4444'}
+                    className={`ring-meter ${ringMeterClass}`}
+                    stroke={ringStrokeColor}
                     strokeWidth="5"
                     strokeDasharray={ringCircumference}
                     strokeDashoffset={strokeDashoffset}
@@ -235,8 +268,8 @@ export default function ChatBubble({ message, onTriggerAlert }) {
                   <span className="ring-caption font-mono">PROBA</span>
                 </div>
               </div>
-              <div className={`status-zone-pill font-mono ${isEmas ? 'pill-glow-green' : 'pill-glow-red'}`}>
-                {isEmas ? 'ZONE EMAS' : 'ZONE MERAH'}
+              <div className={`status-zone-pill font-mono ${statusPillClass}`}>
+                {statusPillLabel}
               </div>
             </div>
           )}
@@ -277,18 +310,21 @@ export default function ChatBubble({ message, onTriggerAlert }) {
                   </div>
                 </div>
 
-                {/* Linear threshold progress */}
+                {/* Linear 3-Zone Threshold Progress */}
                 <div className="pro-progress-bar-container">
                   <div className="pro-bar-labels font-mono">
-                    <span>Threshold Emas (60%)</span>
+                    <span>Zones: &lt;50% Merah | 50-59% Kuning | ≥60% Emas</span>
                     <span>Score: {data.win_rate}</span>
                   </div>
                   <div className="pro-bar-track">
                     <div 
-                      className={`pro-bar-fill ${isEmas ? 'fill-emas' : 'fill-merah'}`}
+                      className={`pro-bar-fill ${isEmas ? 'fill-emas' : isKuning ? 'fill-kuning' : 'fill-merah'}`}
                       style={{ width: `${Math.min(100, Math.max(10, winRateVal))}%` }}
                     ></div>
-                    <div className="pro-threshold-line" style={{ left: '60%' }}></div>
+                    {/* 50% Marker */}
+                    <div className="pro-threshold-line line-50" style={{ left: '50%' }} title="50% Batas Kuning"></div>
+                    {/* 60% Marker */}
+                    <div className="pro-threshold-line line-60" style={{ left: '60%' }} title="60% Batas Emas"></div>
                   </div>
                 </div>
               </div>
